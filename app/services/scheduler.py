@@ -42,6 +42,6 @@ def run_scheduled_analysis():
 def start_scheduler():
     print(" start_scheduler() çağrıldı")
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(run_scheduled_analysis, 'interval', seconds=10)
+    scheduler.add_job(run_scheduled_analysis, 'interval', minutes=10)
     scheduler.start()
     logger.info(" Scheduler started.")

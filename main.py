@@ -1,3 +1,4 @@
+from fastapi.middleware.cors import CORSMiddleware
 
 import sys
 import os
@@ -28,6 +29,19 @@ app = FastAPI(
         {"name": "Plots", "description": "Chart and plot endpoints"},
     ]
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 
 # 🔁 ROUTER EKLEME
 app.include_router(stock_router)
