@@ -93,3 +93,7 @@ async def startup_event():
 
 from app.routes import news_routes
 app.include_router(news_routes.router)
+
+from app.routes import history_routes
+app.include_router(history_routes.router)
+

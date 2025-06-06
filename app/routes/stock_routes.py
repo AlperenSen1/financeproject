@@ -48,6 +48,18 @@ def get_stock_data(
 
 
 
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+from typing import Optional, List
+import yfinance as yf
+
+from app.auth.auth_service import get_current_user
+from app.database.database import get_db
+from app.services import stock_analysis
+from app.services.history_service import save_analysis
+
+router = APIRouter()
+
 @router.get("/analyze/{symbol}")
 def analyze(
     symbol: str,
@@ -55,10 +67,12 @@ def analyze(
     end_date: Optional[str] = None,
     indicators: Optional[List[str]] = Query(default=["sma", "ema", "rsi", "macd", "z_score", "bollinger"]),
     period: Optional[str] = "6mo",
-    interval: Optional[str] = "1d"
+    interval: Optional[str] = "1d",
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
 ):
     try:
-        #  Eğer "indicators=sma,rsi" şeklinde tek string geldiyse split et
+        # "indicators=sma,rsi" gibi tek string geldiyse parçala
         if indicators and len(indicators) == 1 and "," in indicators[0]:
             indicators = indicators[0].split(",")
 
@@ -76,36 +90,31 @@ def analyze(
         hist.reset_index(inplace=True)
         hist["Date"] = hist["Date"].astype(str)
 
-        # DEBUG BAŞLANGIÇ
         print(" MANUEL ANALIZ ÇAĞRISI:", symbol)
         print(" Seçilen Göstergeler:", indicators)
-        # DEBUG BİTİŞ
 
-        # Seçilen göstergelere göre analiz yap
         hist = stock_analysis.calculate_all_indicators(hist, selected_indicators=indicators)
-
-        # DEBUG
-        print(" Kolonlar:", hist.columns.tolist())
-        print(" Son satır:", hist.tail(1).to_dict(orient="records"))
-
         latest_values = stock_analysis.extract_latest_values(hist)
-
-        # DEBUG
-        print(" latest_values:", latest_values)
-
         signals = stock_analysis.generate_signals(latest_values)
-
-        # DEBUG
-        print(" signals:", signals)
-
         decision = stock_analysis.calculate_weighted_decision(signals)
 
-        return {
+        result = {
             "symbol": symbol.upper(),
             "latest": latest_values,
             "signals": signals,
             "final_decision": decision
         }
+
+        # ✅ Veritabanına analiz geçmişi kaydet
+        save_analysis(
+            db=db,
+            username=current_user["username"],
+            symbol=symbol,
+            indicators=indicators,
+            result=result
+        )
+
+        return result
 
     except Exception as e:
         print(" HATA:", str(e))
