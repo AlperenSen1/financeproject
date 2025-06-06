@@ -1,3 +1,8 @@
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
@@ -96,4 +101,8 @@ app.include_router(news_routes.router)
 
 from app.routes import history_routes
 app.include_router(history_routes.router)
+
+from app.routes.analyze_routes import router as analyze_router
+app.include_router(analyze_router)
+
 

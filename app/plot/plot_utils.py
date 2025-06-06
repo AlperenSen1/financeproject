@@ -22,3 +22,26 @@ def plot_stock_chart(data: pd.DataFrame, symbol: str) -> BytesIO:
     plt.close(fig)
     buffer.seek(0)
     return buffer
+
+import matplotlib.pyplot as plt
+import os
+
+def generate_sample_plot(symbol: str):
+    # Örnek veri
+    x = [1, 2, 3, 4, 5]
+    y = [10, 20, 15, 25, 30]
+
+    plt.figure(figsize=(6, 4))
+    plt.plot(x, y, label="Sample Data")
+    plt.title(f"{symbol} Stock Sample Plot")
+    plt.xlabel("X Axis")
+    plt.ylabel("Y Axis")
+    plt.legend()
+    plt.grid(True)
+
+    # Kayıt yolu
+    save_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "plots", f"{symbol}.png"))
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, bbox_inches="tight")
+    plt.close()
+
