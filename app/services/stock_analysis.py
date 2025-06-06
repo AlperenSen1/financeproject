@@ -1,4 +1,6 @@
+from typing import List
 import pandas as pd
+
 
 def calculate_sma(df: pd.DataFrame, window: int = 20):
     df = df.copy()
@@ -45,44 +47,78 @@ def calculate_bollinger(df: pd.DataFrame, window: int = 20):
     df["Bollinger_Upper"] = rolling_mean + 2 * rolling_std
     df["Bollinger_Lower"] = rolling_mean - 2 * rolling_std
     return df
-def calculate_all_indicators(hist):
-    hist = calculate_sma(hist)
-    hist = calculate_ema(hist)
-    hist = calculate_rsi(hist)
-    hist = calculate_macd(hist)
-    hist = calculate_zscore(hist)
-    hist = calculate_bollinger(hist)
+def calculate_all_indicators(hist, selected_indicators: List[str]):
+    if "sma" in selected_indicators:
+        hist = calculate_sma(hist)
+    if "ema" in selected_indicators:
+        hist = calculate_ema(hist)
+    if "rsi" in selected_indicators:
+        hist = calculate_rsi(hist)
+    if "macd" in selected_indicators:
+        hist = calculate_macd(hist)
+    if "z_score" in selected_indicators:
+        hist = calculate_zscore(hist)
+    if "bollinger" in selected_indicators:
+        hist = calculate_bollinger(hist)
+
+    #  Debug çıktısı
+    print("Kolonlar:", hist.columns.tolist())
+    print("Son satır:", hist.tail(1).to_dict(orient="records"))
+
     return hist
 
 
-def extract_latest_values(hist):
-    latest = hist[[
-        "Close", "SMA_20", "EMA_20", "RSI_14", "MACD", "MACD_signal",
-        "Z_Score", "Bollinger_Upper", "Bollinger_Lower"
-    ]].dropna().iloc[-1]
 
-    return {
-        "close": round(latest["Close"], 2),
-        "sma": round(latest["SMA_20"], 2),
-        "ema": round(latest["EMA_20"], 2),
-        "rsi": round(latest["RSI_14"], 2),
-        "macd": round(latest["MACD"], 4),
-        "macd_signal": round(latest["MACD_signal"], 4),
-        "z_score": round(latest["Z_Score"], 2),
-        "bollinger_upper": round(latest["Bollinger_Upper"], 2),
-        "bollinger_lower": round(latest["Bollinger_Lower"], 2)
+
+def extract_latest_values(hist: pd.DataFrame) -> dict:
+    available_cols = hist.columns
+
+    field_map = {
+        "Close": "close",
+        "SMA_20": "sma",
+        "EMA_20": "ema",
+        "RSI_14": "rsi",
+        "MACD": "macd",
+        "MACD_signal": "macd_signal",
+        "Z_Score": "z_score",
+        "Bollinger_Upper": "bollinger_upper",
+        "Bollinger_Lower": "bollinger_lower"
     }
+
+    latest = hist.iloc[-1]  # dropna() kaldırıldı
+    result = {}
+
+    for col, label in field_map.items():
+        if col in available_cols and pd.notna(latest[col]):
+            result[label] = round(latest[col], 2) if "MACD" not in col else round(latest[col], 4)
+
+    return result
+
+
 def generate_signals(data):
-    close = data["close"]
-    signals = {
-        "macd": "Buy" if data["macd"] > data["macd_signal"] else "Sell" if data["macd"] < data["macd_signal"] else "Neutral",
-        "sma": "Buy" if close < data["sma"] else "Sell" if close > data["sma"] else "Neutral",
-        "ema": "Buy" if close < data["ema"] else "Sell" if close > data["ema"] else "Neutral",
-        "rsi": "Buy" if data["rsi"] < 35 else "Sell" if data["rsi"] > 65 else "Neutral",
-        "z_score": "Buy" if data["z_score"] < -2 else "Sell" if data["z_score"] > 2 else "Neutral",
-        "bollinger": "Buy" if close < data["bollinger_lower"] else "Sell" if close > data["bollinger_upper"] else "Neutral"
-    }
+    close = data.get("close")
+    signals = {}
+
+    if "macd" in data and "macd_signal" in data:
+        signals["macd"] = "Buy" if data["macd"] > data["macd_signal"] else "Sell" if data["macd"] < data["macd_signal"] else "Neutral"
+
+    if "sma" in data:
+        signals["sma"] = "Buy" if close < data["sma"] else "Sell" if close > data["sma"] else "Neutral"
+
+    if "ema" in data:
+        signals["ema"] = "Buy" if close < data["ema"] else "Sell" if close > data["ema"] else "Neutral"
+
+    if "rsi" in data:
+        signals["rsi"] = "Buy" if data["rsi"] < 35 else "Sell" if data["rsi"] > 65 else "Neutral"
+
+    if "z_score" in data:
+        signals["z_score"] = "Buy" if data["z_score"] < -2 else "Sell" if data["z_score"] > 2 else "Neutral"
+
+    if "bollinger_lower" in data and "bollinger_upper" in data:
+        signals["bollinger"] = "Buy" if close < data["bollinger_lower"] else "Sell" if close > data["bollinger_upper"] else "Neutral"
+
     return signals
+
 def calculate_weighted_decision(signals):
     weights = {
         "macd": 1.5,
