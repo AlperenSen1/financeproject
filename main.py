@@ -89,3 +89,7 @@ async def log_requests(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     start_scheduler()
+
+
+from app.routes import news_routes
+app.include_router(news_routes.router)
