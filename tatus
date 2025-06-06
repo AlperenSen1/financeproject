@@ -1,0 +1,14 @@
+[33mcommit 6642322815723181ef011df80d6869dd22917ff1[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mcodex/add-date-range-parameters-to-analyze-endpoint[m[33m, [m[1;31morigin/codex/add-date-range-parameters-to-analyze-endpoint[m[33m)[m
+Author: AlperenSen1 <154241673+AlperenSen1@users.noreply.github.com>
+Date:   Fri Jun 6 12:01:41 2025 +0300
+
+    Add date range support and clean Swagger UI
+
+.idea/workspace.xml
+__pycache__/main.cpython-39.pyc
+app/routes/__pycache__/auth_routes.cpython-39.pyc
+app/routes/__pycache__/stock_routes.cpython-39.pyc
+app/routes/auth_routes.py
+app/routes/stock_routes.py
+logs/app.log
+main.py
