@@ -119,4 +119,17 @@ app.include_router(history_routes.router)
 from app.routes.analyze_routes import router as analyze_router
 app.include_router(analyze_router)
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+if not os.path.exists("app/plots"):
+    os.makedirs("app/plots")
+
+app.mount("/plots", StaticFiles(directory="app/plots"), name="plots")
+
+from app.routes.company_routes import router as company_router
+app.include_router(company_router)
+
+
+
 
