@@ -12,3 +12,6 @@ venv/
 
 # Logs
 *.log
+
+*.joblib
+
