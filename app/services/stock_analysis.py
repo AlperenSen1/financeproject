@@ -125,6 +125,9 @@ def calculate_williams_r(df: pd.DataFrame, window: int = 14):
 # --- Master Fonksiyon ---
 
 def calculate_all_indicators(hist: pd.DataFrame, selected_indicators: List[str]) -> pd.DataFrame:
+    if not selected_indicators:
+        selected_indicators = ["sma", "ema", "rsi", "macd", "bollinger", "z_score"]
+
     if "sma" in selected_indicators:
         hist = calculate_sma(hist)
     if "ema" in selected_indicators:

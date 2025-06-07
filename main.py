@@ -1,24 +1,23 @@
 from fastapi.middleware.cors import CORSMiddleware
-
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
+import threading
+import jwt
 from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from fastapi.openapi.utils import get_openapi
+from fastapi.staticfiles import StaticFiles
 
-from app.routes.stock_routes import router as stock_router
-from app.routes.auth_routes import router as auth_router
-from app.routes.plot_routes import router as plot_router
+# Yol ayarı
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Config ve loglama
 from app.config import settings
 from app.logging_config import logger
 from app.auth.auth_service import authenticate_user, create_access_token
-from app.services.scheduler import start_scheduler  # ✅ sadece 1 kez import edildi
+from app.services.scheduler import start_scheduler
 
-import jwt
-
+# App başlat
 app = FastAPI(
     title=settings.app_name,
     debug=settings.debug,
@@ -27,34 +26,47 @@ app = FastAPI(
         {"name": "Auth", "description": "Authentication endpoints"},
         {"name": "Stocks", "description": "Stock-related operations"},
         {"name": "Plots", "description": "Chart and plot endpoints"},
+        {"name": "Screener", "description": "Stock screener operations"}
     ]
 )
 
+# CORS ayarları
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-
 # 🔁 ROUTER EKLEME
+from app.routes.stock_routes import router as stock_router
+from app.routes.auth_routes import router as auth_router
+from app.routes.plot_routes import router as plot_router
+from app.routes.news_routes import router as news_router
+from app.routes.history_routes import router as history_router
+from app.routes.analyze_routes import router as analyze_router
+from app.routes.company_routes import router as company_router
+from app.routes.screener_routes import router as screener_router
+from app.routes.ai_routes import router as ai_router
+
 app.include_router(stock_router)
 app.include_router(auth_router)
 app.include_router(plot_router)
+app.include_router(news_router)
+app.include_router(history_router)
+app.include_router(analyze_router)
+app.include_router(company_router)
+app.include_router(screener_router)
+app.include_router(ai_router)
 
-# 🌐 KÖK ENDPOINT
+# 🌐 Ana endpoint
 @app.get("/", tags=["General"])
 def root():
     logger.info("Root endpoint called.")
     return {"message": f"{settings.app_name} is running."}
 
-# 📦 JWT TOKEN ALMA ENDPOINT
+# 🔐 Secure örnek
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", scheme_name="JWT")
 
 @app.get("/secure-data", tags=["Auth"])
@@ -67,7 +79,7 @@ def secure_data(token: str = Depends(oauth2_scheme)):
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
-# 🛡️ SWAGGER BEARER TOKEN UI
+# 🛡️ Swagger için token şeması
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -96,7 +108,7 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-# 📄 REQUEST LOGGING
+# 📄 Log middleware
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     logger.info(f"New request: {request.method} {request.url}")
@@ -104,40 +116,13 @@ async def log_requests(request: Request, call_next):
     logger.info(f"Response status: {response.status_code}")
     return response
 
-# 🚀 SCHEDULER BAŞLAT
-import threading
-
+# 📅 Scheduler başlat
 @app.on_event("startup")
 async def startup_event():
     threading.Thread(target=start_scheduler, daemon=True).start()
 
-
-
-from app.routes import news_routes
-app.include_router(news_routes.router)
-
-from app.routes import history_routes
-app.include_router(history_routes.router)
-
-from app.routes.analyze_routes import router as analyze_router
-app.include_router(analyze_router)
-
-from fastapi.staticfiles import StaticFiles
-import os
-
+# 📁 Static plots dizini
 if not os.path.exists("app/plots"):
     os.makedirs("app/plots")
 
 app.mount("/plots", StaticFiles(directory="app/plots"), name="plots")
-
-from app.routes.company_routes import router as company_router
-app.include_router(company_router)
-
-from app.routes import ai_routes
-app.include_router(ai_routes.router)
-
-
-
-
-
-
