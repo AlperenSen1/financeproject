@@ -105,9 +105,12 @@ async def log_requests(request: Request, call_next):
     return response
 
 # 🚀 SCHEDULER BAŞLAT
+import threading
+
 @app.on_event("startup")
 async def startup_event():
-    start_scheduler()
+    threading.Thread(target=start_scheduler, daemon=True).start()
+
 
 
 from app.routes import news_routes
@@ -129,6 +132,11 @@ app.mount("/plots", StaticFiles(directory="app/plots"), name="plots")
 
 from app.routes.company_routes import router as company_router
 app.include_router(company_router)
+
+from app.routes import ai_routes
+app.include_router(ai_routes.router)
+
+
 
 
 

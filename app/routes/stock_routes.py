@@ -1,16 +1,26 @@
-from typing import List, Optional
-from fastapi import APIRouter, Query, Depends
 from typing import Optional
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 import yfinance as yf
 
 from app.services import stock_analysis
 from app.auth.auth_service import get_current_user
+from app.database.database import get_db
+from app.services.history_service import save_analysis
+from app.ml.ai_utils import predict_ai_decision
 
 router = APIRouter(
     prefix="/stocks",
     tags=["Stocks"]
 )
 
+# Tüm göstergeler burada
+ALL_INDICATORS = [
+    "sma", "ema", "rsi", "macd", "z_score", "bollinger",
+    "cci", "adx", "stochastic", "williams", "obv", "atr"
+]
+
+# ✅ Hafif analiz için - sadece frontend grafik veya hızlı veri gösterimi için
 @router.get("/{symbol}")
 def get_stock_data(
     symbol: str,
@@ -33,52 +43,26 @@ def get_stock_data(
         hist = stock_analysis.calculate_macd(hist)
 
         return hist[[
-            "Date",
-            "Close",
-            "SMA_20",
-            "EMA_20",
-            "RSI_14",
-            "MACD",
-            "MACD_signal"
+            "Date", "Close", "SMA_20", "EMA_20", "RSI_14", "MACD", "MACD_signal"
         ]].dropna().to_dict(orient="records")
 
     except Exception as e:
         return {"error": str(e)}
 
 
-
-
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
-from typing import Optional, List
-import yfinance as yf
-
-from app.auth.auth_service import get_current_user
-from app.database.database import get_db
-from app.services import stock_analysis
-from app.services.history_service import save_analysis
-
-router = APIRouter()
-
+# ✅ Tüm göstergelerle AI destekli tam analiz
 @router.get("/analyze/{symbol}")
 def analyze(
     symbol: str,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
-    indicators: Optional[List[str]] = Query(default=["sma", "ema", "rsi", "macd", "z_score", "bollinger"]),
     period: Optional[str] = "6mo",
     interval: Optional[str] = "1d",
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        # "indicators=sma,rsi" gibi tek string geldiyse parçala
-        if indicators and len(indicators) == 1 and "," in indicators[0]:
-            indicators = indicators[0].split(",")
-
         ticker = yf.Ticker(symbol)
-
-        # Tarih aralığı varsa onu kullan, yoksa period
         if start_date and end_date:
             hist = ticker.history(start=start_date, end=end_date, interval=interval)
         else:
@@ -91,9 +75,9 @@ def analyze(
         hist["Date"] = hist["Date"].astype(str)
 
         print(" MANUEL ANALIZ ÇAĞRISI:", symbol)
-        print(" Seçilen Göstergeler:", indicators)
 
-        hist = stock_analysis.calculate_all_indicators(hist, selected_indicators=indicators)
+        # Tüm teknik göstergeleri hesapla
+        hist = stock_analysis.calculate_all_indicators(hist, selected_indicators=ALL_INDICATORS)
         latest_values = stock_analysis.extract_latest_values(hist)
         signals = stock_analysis.generate_signals(latest_values)
         decision = stock_analysis.calculate_weighted_decision(signals)
@@ -105,12 +89,23 @@ def analyze(
             "final_decision": decision
         }
 
-        # ✅ Veritabanına analiz geçmişi kaydet
+        # AI tahmini
+        try:
+            ai_result = predict_ai_decision(hist)
+            result["ai"] = ai_result
+
+        except Exception as ai_error:
+            print(f" AI tahmini başarısız: {ai_error}")
+            result["ai"] = {
+                "error": "AI prediction failed"
+            }
+
+        # Veritabanına analiz kaydı
         save_analysis(
             db=db,
             username=current_user["username"],
             symbol=symbol,
-            indicators=indicators,
+            indicators=ALL_INDICATORS,
             result=result
         )
 

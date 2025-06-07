@@ -1,5 +1,5 @@
 import yfinance as yf
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from app.services import stock_analysis
 from app.logging_config import logger
 from app.services.stock_analysis import calculate_all_indicators
@@ -41,7 +41,7 @@ def run_scheduled_analysis():
 
 def start_scheduler():
     print(" start_scheduler() çağrıldı")
-    scheduler = AsyncIOScheduler()
+    scheduler = BackgroundScheduler()
     scheduler.add_job(run_scheduled_analysis, 'interval', minutes=10)
     scheduler.start()
     logger.info(" Scheduler started.")
